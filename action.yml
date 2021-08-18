@@ -1,5 +1,5 @@
 name: 'Generate semantic version'
-description: 'Determine the next semantic version and optionally tag it.'
+description: 'Generate new version on release type name'
 inputs:
   bump:
     description: 'The type of semantic version increment to make (one of major, premajor, minor, preminor, patch, prepatch, or prerelease)'
@@ -21,4 +21,4 @@ runs:
   main: 'dist/index.js'
 branding:
   icon: 'tag'  
-  color: 'purple'
+  color: 'blue'
