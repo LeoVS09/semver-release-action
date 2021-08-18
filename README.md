@@ -1,6 +1,6 @@
 # Semantic Versioning Release Action
 
-This action locates the current version of the repository using its tags, increments it based on the inputs, then creates a tag for that new version at the current commit. Use it to automate the release deployment of a project.
+Action which wraps `semver` package for generate new version, which can be saved in repo or commited as tag.
 
 ## Inputs
 
@@ -14,17 +14,9 @@ You may get this value from another action, such as [zwaldowski/match-label-acti
 
 **Required**. Used to make API requests for looking through and creating tags. Pass in using `secrets.GITHUB_TOKEN`.
 
-### `dry_run`
+### `version`
 
-**Optional**. If true, only calculate the new version and exit successfully. Use this if you want to make additional changes using the version number before tagging. The calculated version number will automatically be used when this action gets re-run.
-
-### `sha`
-
-**Optional**. Override the commit hash used to create the version tag. Use this if you previously ran the action with `dry_run` and modified the tree.
-
-### `prefix`
-
-**Optional**. Version prefix used to create tag. Usually empty or `v` or `=`.
+**Required**. Pass version which need to increment
 
 ### `preid`
 
@@ -40,10 +32,6 @@ The full version number produced by incrementing the semantic version number of 
 
 The major and minor components of `version`. For instance, given `12.4.1` and `bump: minor`, `12.5`. Use for recommending a non-specific release to users, as in a `~>` declaration in a `Gemfile`.
 
-### `version_tag`
-
-The version string used to create the tag (the theoretical tag if `dry_run` is true).
-
 ## Example usage
 
 ### Simple
@@ -55,32 +43,70 @@ Create a version, f.ex., when merging to master.
   uses: zwaldowski/match-label-action@v1
   with:
     allowed: major,minor,patch
-- uses: zwaldowski/semver-release-action@v1
+- uses: leovs09/semver-release-action@v1
   with:
+    version: "0.1.0"
     bump: ${{ steps.bump.outputs.match }}
     github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Advanced
 
-Create a version and use the version to modify the repo, such as update a `README`. Run `semver-release-action` once to determine the version number and once to actually perform the release.
+Read version from `settings.yaml` inside monorepo `search` folder and generatte new kubernetes manifests, then commit
 
 ```yaml
-- id: next_version
-  uses: zwaldowski/semver-release-action@v1
-    with:
-      dry_run: true
-      bump: ${{ … }}
-      github_token: ${{ secrets.GITHUB_TOKEN }}
-// Do something to modify the repo using `${{ steps.next_version.outputs.version }}`.
-- run: echo "${{ steps.next_version.outputs.version }}"
-- run: |
-    git add .
-    git commit -m "Bump version"
-    git push
-    echo ::set-output name=sha::$(git rev-parse HEAD)
-- uses: zwaldowski/semver-release-action@v1
-  with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
-    sha: ${{ steps.git_commit.outputs.sha }}
+name: Bump search service version
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+    - opened
+    - labeled
+    - unlabeled
+    paths:
+      - "search/**"
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    
+    - name: Resolve bump label
+      id: bump
+      uses: zwaldowski/match-label-action@v1
+      with:
+        allowed: major,minor,patch
+    - name: Read version from settings.yaml and set version variables
+      run: |
+        VER=$(grep VERSION search/settings.yaml | cut -d '"' -f 2)
+        echo "VERSION=$VER" >> $GITHUB_ENV
+    - name: Generate new version
+      id: next_version
+      uses: leovs09/semver-release-action@v2
+      with:
+        bump: ${{ steps.bump.outputs.match }}
+        prefix: search_v
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        dry_run: true
+        version: ${{ env.VERSION }}
+    
+    - name: Save new version in image settings.yaml
+      run: |-
+        cd search
+        sed -i -E 's/APP_VERSION: "(.*)"/APP_VERSION: "${{ steps.next_version.outputs.version }}"/g' settings.yaml
+    - name: Generate production yaml with new version from template
+      run: |-
+        cd manifests
+        sed -E 's/%VERSION%/${{ steps.next_version.outputs.version }}/g' templates/search.yaml > production/search.yaml
+    
+    - name: Commit and push changes
+      uses: EndBug/add-and-commit@v7
+      with: 
+        default_author: github_actions
+        message: 'search_v${{ steps.next_version.outputs.version }}'
+        tag: 'search_v${{ steps.next_version.outputs.version }} --force'
+
 ```
