@@ -85,7 +85,7 @@ jobs:
         echo "VERSION=$VER" >> $GITHUB_ENV
     - name: Generate new version
       id: next_version
-      uses: leovs09/semver-release-action@v2
+      uses: leovs09/semver-release-action@v1
       with:
         bump: ${{ steps.bump.outputs.match }}
         prefix: search_v
