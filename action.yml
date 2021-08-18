@@ -1,6 +1,9 @@
 name: 'Generate semantic version'
 description: 'Generate new version on release type name'
 inputs:
+  version:
+    description: 'Pass version which need to increment'
+    required: true
   bump:
     description: 'The type of semantic version increment to make (one of major, premajor, minor, preminor, patch, prepatch, or prerelease)'
     required: true

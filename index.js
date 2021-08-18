@@ -10,7 +10,7 @@ async function run() {
 
     version = semver.inc(version, bump, identifier)
 
-    core.exportVariable('VERSION', version.toString())
+    // core.exportVariable('VERSION', version.toString())
     core.setOutput('version', version.toString())
     core.setOutput('version_optimistic', `${semver.major(version)}.${semver.minor(version)}`)
 

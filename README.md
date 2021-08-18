@@ -43,7 +43,7 @@ Create a version, f.ex., when merging to master.
   uses: zwaldowski/match-label-action@v1
   with:
     allowed: major,minor,patch
-- uses: leovs09/semver-release-action@v1
+- uses: leovs09/semver-release-action@v2
   with:
     version: "0.1.0"
     bump: ${{ steps.bump.outputs.match }}
@@ -76,7 +76,7 @@ jobs:
     
     - name: Resolve bump label
       id: bump
-      uses: zwaldowski/match-label-action@v1
+      uses: zwaldowski/match-label-action@v2
       with:
         allowed: major,minor,patch
     - name: Read version from settings.yaml and set version variables
